@@ -33,6 +33,8 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
+	var nickname string
+
 	ch := make(chan string)
 	go clientWriter(conn, ch)
 
@@ -41,19 +43,35 @@ func handleConn(conn net.Conn) {
 	messages <- who + " has arrived"
 	entering <- ch
 
-	log.Println(who + " has arrived")
+	log.Println(who + " has arrived11")
 
+	ch <- "Please, input your nickname:"
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
-		messages <- who + ": " + input.Text()
+
+		if len(nickname) == 0 {
+			nickname = input.Text()
+			ch <- "your nickname is: " + nickname
+			log.Println(who + " changed to: " + nickname)
+		} else {
+			messages <- nickname + ": " + input.Text()
+		}
+
 	}
+
 	leaving <- ch
-	messages <- who + " has left"
+	if len(nickname) == 0 {
+		messages <- who + " has left"
+	} else {
+		messages <- nickname + " has left"
+	}
+
 	conn.Close()
 }
 
 func clientWriter(conn net.Conn, ch <-chan string) {
 	for msg := range ch {
+		log.Println(msg)
 		fmt.Fprintln(conn, msg)
 	}
 }
@@ -62,6 +80,7 @@ func broadcaster() {
 	clients := make(map[client]bool)
 	for {
 		select {
+
 		case msg := <-messages:
 			for cli := range clients {
 				cli <- msg
