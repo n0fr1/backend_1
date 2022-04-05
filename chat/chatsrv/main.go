@@ -43,7 +43,7 @@ func handleConn(conn net.Conn) {
 	messages <- who + " has arrived"
 	entering <- ch
 
-	log.Println(who + " has arrived11")
+	log.Println(who + " has arrived")
 
 	ch <- "Please, input your nickname:"
 	input := bufio.NewScanner(conn)

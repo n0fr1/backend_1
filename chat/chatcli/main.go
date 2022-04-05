@@ -15,8 +15,15 @@ func main() {
 	}
 	defer conn.Close()
 	go func() {
-		io.Copy(os.Stdout, conn)
+		_, err = io.Copy(os.Stdout, conn)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}()
-	io.Copy(conn, os.Stdin) // until you send ^Z
+	_, err = io.Copy(conn, os.Stdin) // until you send ^Z
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Printf("%s: exit", conn.LocalAddr())
 }
