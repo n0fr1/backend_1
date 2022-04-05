@@ -60,6 +60,7 @@ func handleConn(conn net.Conn) {
 	}
 
 	leaving <- ch
+
 	if len(nickname) == 0 {
 		messages <- who + " has left"
 	} else {
@@ -71,7 +72,6 @@ func handleConn(conn net.Conn) {
 
 func clientWriter(conn net.Conn, ch <-chan string) {
 	for msg := range ch {
-		log.Println(msg)
 		fmt.Fprintln(conn, msg)
 	}
 }
