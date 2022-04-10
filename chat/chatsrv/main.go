@@ -9,30 +9,46 @@ import (
 
 type client chan<- string
 
-var (
-	entering = make(chan client)
-	leaving  = make(chan client)
-	messages = make(chan string)
-)
+type clients struct {
+	entering chan client
+	leaving  chan client
+	messages chan string
+}
+
+func NewClients() clients {
+
+	entering := make(chan client)
+	leaving := make(chan client)
+	messages := make(chan string)
+
+	return clients{
+		entering: entering,
+		leaving:  leaving,
+		messages: messages,
+	}
+}
 
 func main() {
+
+	nclients := NewClients()
+
 	listener, err := net.Listen("tcp", "localhost:8001")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	go broadcaster()
+	go nclients.broadcaster()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Print(err)
 			continue
 		}
-		go handleConn(conn)
+		go nclients.handleConn(conn)
 	}
 }
 
-func handleConn(conn net.Conn) {
+func (c *clients) handleConn(conn net.Conn) {
 	var nickname string
 
 	ch := make(chan string)
@@ -40,12 +56,12 @@ func handleConn(conn net.Conn) {
 
 	who := conn.RemoteAddr().String()
 	ch <- "You are " + who
-	messages <- who + " has arrived"
-	entering <- ch
+	c.messages <- who + " has arrived"
+	c.entering <- ch
 
 	log.Println(who + " has arrived")
 
-	ch <- "Please, input your nickname:"
+	ch <- "Please, input your nickname:" //добавляем возможность указывать nickname
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
 
@@ -54,17 +70,17 @@ func handleConn(conn net.Conn) {
 			ch <- "your nickname is: " + nickname
 			log.Println(who + " changed to: " + nickname)
 		} else {
-			messages <- nickname + ": " + input.Text()
+			c.messages <- nickname + ": " + input.Text()
 		}
 
 	}
 
-	leaving <- ch
+	c.leaving <- ch
 
 	if len(nickname) == 0 {
-		messages <- who + " has left"
+		c.messages <- who + " has left"
 	} else {
-		messages <- nickname + " has left"
+		c.messages <- nickname + " has left"
 	}
 
 	conn.Close()
@@ -76,19 +92,21 @@ func clientWriter(conn net.Conn, ch <-chan string) {
 	}
 }
 
-func broadcaster() {
+func (c *clients) broadcaster() {
+
 	clients := make(map[client]bool)
+
 	for {
 		select {
 
-		case msg := <-messages:
+		case msg := <-c.messages:
 			for cli := range clients {
 				cli <- msg
 			}
-		case cli := <-entering:
+		case cli := <-c.entering:
 			clients[cli] = true
 
-		case cli := <-leaving:
+		case cli := <-c.leaving:
 			delete(clients, cli)
 			close(cli)
 		}
