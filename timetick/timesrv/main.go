@@ -14,6 +14,7 @@ import (
 type Server struct {
 	messages    chan string
 	connections map[net.Conn]bool
+	wg          sync.WaitGroup
 }
 
 func NewServer() Server {
@@ -41,7 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wg := &sync.WaitGroup{}
+
 	log.Println("im started!")
 
 	go func() {
@@ -51,9 +52,9 @@ func main() {
 				log.Println(err)
 				return
 			} else {
-				wg.Add(1)
+				srv.wg.Add(1)
 				srv.connections[conn] = true
-				go srv.handleConn(ctx, conn, wg)
+				go srv.handleConn(ctx, conn)
 			}
 		}
 	}()
@@ -62,11 +63,11 @@ func main() {
 
 	log.Println("done")
 	l.Close()
-	wg.Wait()
+	srv.wg.Wait()
 	log.Println("exit")
 }
 
-func (s *Server) catchMessage() {
+func (s *Server) catchMessage() { //ловим сообщения от сервера
 
 	var msg string
 
@@ -77,8 +78,9 @@ func (s *Server) catchMessage() {
 
 }
 
-func (s *Server) handleConn(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) { //, connections map[net.Conn]bool) {
-	defer wg.Done()
+func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
+
+	defer s.wg.Done()
 	defer conn.Close()
 
 	go s.catchMessage()
@@ -88,12 +90,12 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn, wg *sync.WaitGro
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Fprintf(conn, "%s\n", "Bye!")
-			delete(s.connections, conn)
+			fmt.Fprintf(conn, "%s\n", "Bye-bye!")
+			delete(s.connections, conn) //очищаем соединения
 			return
 		case t := <-tck.C:
 			fmt.Fprintf(conn, "now: %s\n", t)
-		case msg := <-s.messages:
+		case msg := <-s.messages: //выводим сообщение всем клиентам
 			for connect := range s.connections {
 				fmt.Fprintf(connect, "!!! Message: %s\n", msg)
 			}
