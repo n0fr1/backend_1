@@ -11,26 +11,35 @@ import (
 	"time"
 )
 
+//Для отработки практических навыков
+//Решил реализовать через интерфейс и структуру
+type TimeInfo interface {
+	start()
+	catchMessage()
+	handleConn(context.Context, net.Conn)
+}
+
 type Server struct {
 	messages    chan string
 	connections map[net.Conn]bool
 	wg          sync.WaitGroup
 }
 
-func NewServer() Server {
+func main() {
 
 	message := make(chan string)
 	connection := make(map[net.Conn]bool)
 
-	return Server{
+	var srv TimeInfo = &Server{
 		messages:    message,
 		connections: connection,
 	}
+
+	srv.start()
+
 }
 
-func main() {
-
-	srv := NewServer()
+func (s *Server) start() {
 
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 
@@ -52,9 +61,10 @@ func main() {
 				log.Println(err)
 				return
 			} else {
-				srv.wg.Add(1)
-				srv.connections[conn] = true
-				go srv.handleConn(ctx, conn)
+
+				s.wg.Add(1)
+				s.connections[conn] = true
+				go s.handleConn(ctx, conn)
 			}
 		}
 	}()
@@ -63,7 +73,7 @@ func main() {
 
 	log.Println("done")
 	l.Close()
-	srv.wg.Wait()
+	s.wg.Wait()
 	log.Println("exit")
 }
 
