@@ -64,6 +64,7 @@ func (s *Server) start() {
 
 				s.wg.Add(1)
 				s.connections[conn] = true
+				go s.catchMessage()
 				go s.handleConn(ctx, conn)
 			}
 		}
@@ -82,7 +83,7 @@ func (s *Server) catchMessage() { //ловим сообщения от серв�
 	var msg string
 
 	for {
-		fmt.Fscan(os.Stdin, &msg)
+		fmt.Fscanln(os.Stdin, &msg)
 		s.messages <- msg
 	}
 
@@ -92,8 +93,6 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 
 	defer s.wg.Done()
 	defer conn.Close()
-
-	go s.catchMessage()
 
 	// каждую 1 секунду отправлять клиентам текущее время сервера
 	tck := time.NewTicker(time.Second)
